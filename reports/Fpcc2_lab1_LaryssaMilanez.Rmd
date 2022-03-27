@@ -1,0 +1,168 @@
+---
+title: "lab1_Laryssa"
+author: "Laryssa Kellen Filgueira Milanez"
+date: '2022-03-26'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Importando dados
+```{r, echo = FALSE}
+library(tidyverse)
+library(ggplot2)
+library(scales)
+library(stringr)
+
+source("../code/lab1.R")
+```
+# Questão 1
+## Calcule média e desvio padrão da idade e nível de interesse. As métricas contendos as métricas calculadas para idade e devem ser apresentadas de forma ordenada, da maior idade para a menor. Além de apresentar no relatório, os resultados devem ser salvos em um arquivo csv, que deve ser adicionado ao repositório.
+
+```{r, echo=TRUE}
+# Cálculo realizado para idade
+df_idade <- turma_fpcc2 %>% select(idade) %>% 
+  mutate(idade_int = as.integer(gsub("[a-z]|\\.", "", idade)))
+
+media_id = mean(df_idade$idade_int)
+desvio_id = sd(df_idade$idade_int)
+sort(df_idade$idade_int, decreasing = TRUE)
+
+# Cálculo realizado para nível de interesse
+df_progR<-turma_fpcc2 %>% select(prog_r)%>%
+  mutate(prog_r = case_when(
+    prog_r == "Nenhuma confiança" ~ "nc",
+    prog_r == "Um pouco" ~ "pc",
+    prog_r == "Médio" ~ "md",
+    prog_r == "Bastante confiante" ~ "bc",
+    TRUE ~ prog_r
+  ))%>%
+  count(prog_r)
+
+media_int = mean(df_progR$n)
+desvio_int = sd(df_progR$n)
+
+# Criando o Dataframe com os valores
+campos <- c("Media Idade","Media Nível Interesse", "Desvio Padrão Idade", "Desvio Padrão Nível Interesse")
+valores <- c(media_id,media_int,desvio_id,desvio_int)
+df_data <- data.frame(campos, valores)
+valores_ordenados <- df_data[order(-valores),]
+
+# Exibindo o data Frame
+valores_ordenados
+
+#Salvando em um arquivo csv
+write.csv(valores_ordenados,"quest1.csv")
+```
+
+# Questão 2
+## Qual o curso com maior valor médio de idade? Discutir os resultados com base nos dados disponíveis em termos de representatividade.
+
+```{r}
+df_curso <- turma_fpcc2 %>% select(tipo_curso, idade)%>%
+  mutate(idade_int = as.integer(gsub("[a-z]|\\.", "", idade)))
+df_idade1 <- df_curso %>% select(tipo_curso, idade_int)%>%
+  group_by(tipo_curso) %>% 
+  summarise(num = n(), idade = mean(idade_int))%>%
+  mutate(maior_media = as.integer(idade))
+pos <- which.max(df_idade1$maior_media)
+df_idade1[pos, c('tipo_curso', 'maior_media')]
+```
+### CONCLUSÃO: O curso com maior valor médio de idade é o de “Doutorado”, onde apresenta uma média de 35 anos de idade, porém o curso apresenta apenas 12,5% de representatividade, já o de Mestrado temos 87,5% de representatividade.
+
+# Questão 3
+## Crie um gráfico que mostra a idade média para cada curso. Apresente o gráfico e discuta os resultados no relatório. O gráfico também deve ser salvo em uma imagem no formato png, que deve ser adicionada ao repositório.
+
+```{r}
+df_curso1 <- turma_fpcc2 %>% select(tipo_curso, idade)%>%
+  mutate(idade_int = as.integer(gsub("[a-z]|\\.", "", idade)))%>%
+  group_by(tipo_curso)%>%
+  summarise(media = mean(idade_int))
+
+ggplot(df_curso1, aes(tipo_curso, media, fill = tipo_curso)) + 
+  geom_bar(stat = "identity") + 
+  xlab("Tipo de curso") +
+  ylab("Número de alunos") + 
+  theme_bw(base_size = 14) + 
+  theme(legend.position = "None")
+
+# Salvando o gráfico
+ggsave("alunos_curso_idade.png")
+```
+### Vemos pelo gráfico que os alunos do Mestrado possuem a menor média de idade, podendo concluir assim que a maioria deles concluíram o curso recentemente. Os alunos de Doutorado possuem a média mais alta.
+
+# Questão 4
+## Crie um gráfico que mostra o percentual de alunos para cada estado de origem. Apresente o gráfico e discuta os resultados no relatório. O gráfico também deve ser salvo em uma imagem no formato png, que deve ser adicionada ao repositório.
+```{r}
+df_reg <- turma_fpcc2 %>% select(uf) %>% 
+  filter(uf != "Opção 1")
+
+df_reg <- turma_fpcc2 %>% select(uf) %>% 
+  mutate(uf = ifelse(uf == "Opção 1", NA, uf)) %>% 
+  mutate(uf = case_when(
+    uf == "Paraiba" ~ "PB", 
+    uf == "Paraíba" ~ "PB",
+    uf == "PB (Campina Grande)" ~ "PB",
+    uf == "Acre" ~ "AC",
+    uf == "Alagoas" ~ "AL",
+    uf == "Pernambuco, mas moro em Campina Grande há mais de 20 anos" ~ "PE",
+    TRUE ~ uf
+  )) %>% 
+  filter(!is.na(uf)) %>%
+  count(uf) %>%
+  arrange(-n, uf)%>%
+  group_by(uf)%>%
+  summarise(num = n)%>%
+  mutate(perc2 = num / nrow(turma_fpcc2))
+
+ggplot(df_reg, aes(uf, num, fill = uf)) + 
+  geom_bar(stat = "identity") + 
+  xlab("Uf") +
+  ylab("% de alunos por estado") + 
+  theme_bw(base_size = 14) + 
+  theme(legend.position = "None")
+
+ggsave("alunos_percent_estado.png")
+```
+### Podemos perceber pelo gráfico que a maior parte dos alunos do curso são do próprio estado, ou seja, temos mais alunos da Paraíba em relação aos demais estados listados.
+
+# Questão 5
+## Compare a média de idade geral com a média de idade dos top-5 e dos bottom-5. Além de apresentar e discutir os resultados no relatório, salvar em uma tabela (dataframe) com as médias em questão.
+```{r}
+df_mediageral <- turma_fpcc2 %>% select(idade) %>% 
+  mutate(idade_int = as.integer(gsub("[a-z]|\\.", "", idade)))
+
+#Top-5
+df_top5 <- df_mediageral %>%
+  arrange(desc(idade_int)) %>%
+  slice(1:5)
+df_top5
+
+df_bottom5 <- df_mediageral %>%
+  arrange(idade_int) %>%
+  slice(1:5)
+df_bottom5
+
+# Média Geral do vetor idade_int
+md = mean(df_mediageral$idade_int)
+
+
+# Média do Top-5
+mtd = mean(df_top5$idade_int)
+
+# Média do Bottom-5
+mbd = mean(df_bottom5$idade_int)
+
+# Criando o Dataframe com os valores
+df_idade_quest5 <- data.frame(md, mtd, mbd)
+
+
+# renomeando colunas
+colnames <- c("Média Geral de Idades", "Média de Idades TOP-5", "Média de Idades BOTTOM-5")
+colnames(df_idade_quest5) <- colnames
+
+print(df_idade_quest5)
+```
+### CONCLUSÃO: Podemos verificar que na média geral das idades, 29 anos, fica mais aproxima das idades dos mais velhos, que apresentam uma média de 38 anos.

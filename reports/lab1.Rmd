@@ -37,7 +37,7 @@ ggplot(q1, aes(tipo_curso, perc2, fill = tipo_curso)) +
   xlab("Tipo de curso") +
   ylab("Alunos") + 
   theme_bw(base_size = 14) + 
-  scale_y_continuous(labels = percent) + 
+  scale_y_continuous(labels = perc2) + 
   theme(legend.position = "None")
 ```
 
